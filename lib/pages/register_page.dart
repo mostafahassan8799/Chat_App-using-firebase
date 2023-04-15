@@ -1,35 +1,37 @@
 import 'package:chat/components/constants.dart';
 import 'package:chat/components/login_custom_button.dart';
+import 'package:chat/pages/cubits/register_cubit/register_cubit.dart';
 import 'package:chat/pages/login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../components/custom_text_field.dart';
 import 'package:modal_progress_hud_nsn/modal_progress_hud_nsn.dart';
 
 import '../helper/showSnackBar.dart';
 
-class RegisterPage extends StatefulWidget {
-  RegisterPage({Key? key}) : super(key: key);
+class RegisterPage extends StatelessWidget {
   static String id = 'RegisterPage';
-
-  @override
-  State<RegisterPage> createState() => _RegisterPageState();
-}
-
-class _RegisterPageState extends State<RegisterPage> {
   GlobalKey<FormState> formKey = GlobalKey();
-
   String? email;
-
   String? password;
-
   bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
-    return ModalProgressHUD(
-      inAsyncCall: isLoading,
-      child: Scaffold(
+    return BlocConsumer<RegisterCubit, RegisterState>(
+      listener: (context, state) {
+        if (state is RegisterIsLoading) {
+          isLoading = true;
+        } else if (state is RegisterSuccess) {
+          isLoading = false;
+          Navigator.pop(context);
+        } else if (state is RegisterFailure) {
+          isLoading = false;
+          showSnackBar(context, state.errorMessage);
+        }
+      },
+      builder: (context, state) => Scaffold(
         backgroundColor: kPrimaryColor,
         body: Padding(
           padding: const EdgeInsets.all(8.0),
@@ -99,25 +101,9 @@ class _RegisterPageState extends State<RegisterPage> {
                   onTap: () async {
                     if (formKey.currentState!.validate()) {
                       isLoading = true;
-                      setState(() {});
-                      try {
-                        await registerUser();
-                        showSnackBar(context, 'Success');
-                        Navigator.pop(context);
-                      } on FirebaseAuthException catch (e) {
-                        if (e.code == 'weak-password') {
-                          showSnackBar(
-                              context, 'The password provided is too weak.');
-                        } else if (e.code == 'email-already-in-use') {
-                          showSnackBar(context,
-                              'The account already exists for that email.');
-                        } else {
-                          showSnackBar(context, e.toString());
-                        }
-                      }
-                      isLoading = false;
-                      setState(() {});
-                    } else {}
+                      BlocProvider.of<RegisterCubit>(context)
+                          .registerUser(email: email!, password: password!);
+                    }
                   },
                   text: 'REGISTER',
                 ),
